@@ -1,0 +1,37 @@
+name: Database Migration
+
+on:
+  push:
+    paths:
+      - 'prisma/schema.prisma'
+    branches: [main]
+
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+jobs:
+  migrate:
+    name: Push Schema to Database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Push schema to database
+        run: npx prisma db push
+
+      - name: Seed database (if needed)
+        run: npx tsx prisma/seed.ts
+        continue-on-error: true

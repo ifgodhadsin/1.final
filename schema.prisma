@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                String   @id @default(uuid())
+  name              String
+  subscription_plan  String   @default("pro")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  users             User[]
+  vehicles          Vehicle[]
+  drivers           Driver[]
+  trips             Trip[]
+  fuel_logs         FuelLog[]
+  alerts            Alert[]
+  maintenance_logs  MaintenanceLog[]
+  expenses          Expense[]
+}
+
+model User {
+  id         String    @id @default(uuid())
+  org_id     String
+  email      String    @unique
+  full_name  String
+  role       String    @default("fleet_manager")
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  org        Organization @relation(fields: [org_id], references: [id])
+  driver     Driver?
+}
+
+model Vehicle {
+  id                  String   @id @default(uuid())
+  org_id              String
+  registration_number String   @unique
+  vehicle_name        String
+  vehicle_type        String   @default("van")
+  max_load_capacity   Decimal  @default(0) @db.Decimal(10, 2)
+  current_odometer    Decimal  @default(0) @db.Decimal(10, 2)
+  acquisition_cost    Decimal  @default(0) @db.Decimal(10, 2)
+  status              String   @default("available")
+  year                Int      @default(2023)
+  make                String
+  model               String
+  vin                 String   @unique
+  fuel_type           String   @default("diesel")
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  org                 Organization @relation(fields: [org_id], references: [id])
+  trips               Trip[]
+  fuel_logs           FuelLog[]
+  maintenance_logs    MaintenanceLog[]
+  expenses            Expense[]
+  alerts              Alert[]
+}
+
+model Driver {
+  id                String   @id @default(uuid())
+  user_id           String   @unique
+  license_number    String   @unique
+  license_category  String
+  license_expiry    DateTime
+  contact_number    String
+  safety_score      Decimal  @default(100) @db.Decimal(5, 2)
+  status            String   @default("available")
+  years_experience  Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  user              User     @relation(fields: [user_id], references: [id])
+  org_id            String
+  org               Organization @relation(fields: [org_id], references: [id])
+  trips             Trip[]
+  alerts            Alert[]
+}
+
+model Trip {
+  id                  String   @id @default(uuid())
+  org_id              String
+  vehicle_id          String
+  driver_id           String
+  trip_number         String   @unique
+  source              String
+  destination         String
+  cargo_weight        Decimal  @default(0) @db.Decimal(10, 2)
+  planned_distance    Decimal  @default(0) @db.Decimal(10, 2)
+  actual_distance     Decimal  @default(0) @db.Decimal(10, 2)
+  status              String   @default("draft")
+  started_at          DateTime?
+  completed_at        DateTime?
+  estimated_duration  Int      @default(0)
+  actual_duration     Int      @default(0)
+  revenue             Decimal  @default(0) @db.Decimal(10, 2)
+  notes               String   @default("")
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  org                 Organization @relation(fields: [org_id], references: [id])
+  vehicle             Vehicle  @relation(fields: [vehicle_id], references: [id])
+  driver              Driver   @relation(fields: [driver_id], references: [id])
+  expenses            Expense[]
+}
+
+model FuelLog {
+  id                  String   @id @default(uuid())
+  vehicle_id          String
+  liters              Decimal  @default(0) @db.Decimal(10, 2)
+  cost_per_liter      Decimal  @default(0) @db.Decimal(10, 2)
+  total_cost          Decimal  @default(0) @db.Decimal(10, 2)
+  odometer_reading    Decimal  @default(0) @db.Decimal(10, 2)
+  fuel_station        String   @default("")
+  location_lat        Decimal  @default(0) @db.Decimal(10, 6)
+  location_lng        Decimal  @default(0) @db.Decimal(10, 6)
+  is_fraud_suspected  Boolean  @default(false)
+  fraud_reason        String   @default("")
+  ai_confidence_score Decimal  @default(0) @db.Decimal(5, 2)
+  logged_at           DateTime @default(now())
+  vehicle             Vehicle  @relation(fields: [vehicle_id], references: [id])
+  org_id              String
+  org                 Organization @relation(fields: [org_id], references: [id])
+}
+
+model MaintenanceLog {
+  id               String   @id @default(uuid())
+  vehicle_id       String
+  service_type     String
+  description      String
+  cost             Decimal  @default(0) @db.Decimal(10, 2)
+  service_date     DateTime @default(now())
+  next_service_date DateTime?
+  status           String   @default("scheduled")
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  vehicle          Vehicle  @relation(fields: [vehicle_id], references: [id])
+  org_id           String
+  org              Organization @relation(fields: [org_id], references: [id])
+}
+
+model Expense {
+  id            String   @id @default(uuid())
+  vehicle_id    String
+  trip_id       String?
+  expense_type  String
+  amount        Decimal  @default(0) @db.Decimal(10, 2)
+  description   String   @default("")
+  expense_date  DateTime @default(now())
+  vehicle       Vehicle  @relation(fields: [vehicle_id], references: [id])
+  trip          Trip?    @relation(fields: [trip_id], references: [id])
+  org_id        String
+  org           Organization @relation(fields: [org_id], references: [id])
+}
+
+model Alert {
+  id            String   @id @default(uuid())
+  org_id        String
+  vehicle_id    String?
+  driver_id     String?
+  alert_type    String
+  severity      String   @default("medium")
+  title         String
+  description   String
+  is_resolved   Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  org           Organization @relation(fields: [org_id], references: [id])
+  vehicle       Vehicle? @relation(fields: [vehicle_id], references: [id])
+  driver        Driver?  @relation(fields: [driver_id], references: [id])
+}
